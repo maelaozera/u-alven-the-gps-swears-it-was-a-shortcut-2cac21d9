@@ -3,66 +3,69 @@ import { mkdirSync, writeFileSync } from "node:fs";
 // ---------------------------------------------------------------------------
 // Entry text
 // ---------------------------------------------------------------------------
-// The GPS's one-line excuse for sending the driver down the wrong road.
-// GPS voice: a turn instruction, smug and defensive, blaming nobody but
-// taking full credit for the "shortcut" — with a fresh, specific detail.
-const ENTRY =
-  "In 200 feet, turn left into the wedding. The bride asked for a grand entrance, and I delivered.";
+// One-line excuse from a GPS that sent the driver down the wrong road.
+// The voice is a turn instruction: smug, defensive, taking full credit
+// for the "shortcut" while blaming nobody, with one fresh, specific detail.
+function buildEntryText(): string {
+  return "In 200 feet, turn left into the wedding. The bride asked for a grand entrance, and I delivered.";
+}
+
+const GPS_INSTRUCTION = buildEntryText();
 
 // ---------------------------------------------------------------------------
 // Output rules
 // ---------------------------------------------------------------------------
-// The entry must be a single line of plain text, 1 to 200 characters long,
-// with no line breaks and not only whitespace. Keeping the limits as named
-// constants makes the gate self-check easy to audit against the rules.
-const OUTPUT_DIR = "/output";
-const OUTPUT_PATH = "/output/entry.txt";
-const MIN_LENGTH = 1;
-const MAX_LENGTH = 200;
-const SINGLE_LINE_PATTERN = /\n|\r/;
+// The entry has to be one line of plain text, between 1 and 200 characters,
+// with no line breaks and more than just whitespace. The limits live in
+// named constants below so the gate checks stay easy to audit.
+const OUT_DIR = "/output";
+const OUT_FILE = "/output/entry.txt";
+const MIN_CHARS = 1;
+const MAX_CHARS = 200;
+const LINE_BREAK_PATTERN = /\n|\r/;
 
 // ---------------------------------------------------------------------------
-// Validation helpers
+// Gate checks
 // ---------------------------------------------------------------------------
 
-/** Trim surrounding whitespace; the stored line is the trimmed text. */
-function normalizeLine(raw: string): string {
+/** Strip surrounding whitespace; the stored line is the trimmed text. */
+function tidyLine(raw: string): string {
   return raw.trim();
 }
 
-/** The line must be non-empty and no longer than the allowed maximum. */
-function assertLength(line: string): void {
-  if (line.length < MIN_LENGTH || line.length > MAX_LENGTH) {
+/** The line must be non-empty and within the allowed character budget. */
+function checkLength(line: string): void {
+  if (line.length < MIN_CHARS || line.length > MAX_CHARS) {
     throw new Error(
-      `Entry must be ${MIN_LENGTH}-${MAX_LENGTH} characters, got ${line.length}.`,
+      `Entry must be ${MIN_CHARS}-${MAX_CHARS} characters, got ${line.length}.`,
     );
   }
 }
 
-/** The line must not contain any newline or carriage-return characters. */
-function assertSingleLine(line: string): void {
-  if (SINGLE_LINE_PATTERN.test(line)) {
+/** Reject any newline or carriage-return inside the line. */
+function checkOneLine(line: string): void {
+  if (LINE_BREAK_PATTERN.test(line)) {
     throw new Error("Entry must be a single line.");
   }
 }
 
-/** Run every gate self-check on the candidate line. */
-function validateLine(raw: string): string {
-  const line = normalizeLine(raw);
-  assertLength(line);
-  assertSingleLine(line);
-  return line;
+/** Apply every gate check to a candidate line and return the clean line. */
+function prepareLine(raw: string): string {
+  const cleaned = tidyLine(raw);
+  checkLength(cleaned);
+  checkOneLine(cleaned);
+  return cleaned;
 }
 
 // ---------------------------------------------------------------------------
 // Output helper
 // ---------------------------------------------------------------------------
 
-/** Write the validated line to the output file with a trailing newline. */
-function writeEntry(line: string): void {
-  mkdirSync(OUTPUT_DIR, { recursive: true });
-  writeFileSync(OUTPUT_PATH, line + "\n", "utf8");
-  console.log(`Wrote ${OUTPUT_PATH} (${line.length} characters).`);
+/** Save the validated line to the output file with a trailing newline. */
+function saveEntry(line: string): void {
+  mkdirSync(OUT_DIR, { recursive: true });
+  writeFileSync(OUT_FILE, line + "\n", "utf8");
+  console.log(`Wrote ${OUT_FILE} (${line.length} characters).`);
 }
 
 // ---------------------------------------------------------------------------
@@ -70,8 +73,8 @@ function writeEntry(line: string): void {
 // ---------------------------------------------------------------------------
 
 function main(): void {
-  const line = validateLine(ENTRY);
-  writeEntry(line);
+  const checked = prepareLine(GPS_INSTRUCTION);
+  saveEntry(checked);
 }
 
 main();
